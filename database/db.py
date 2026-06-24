@@ -1,6 +1,8 @@
 from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from database.models import Base, User
+from sqlalchemy import select, update
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR}/data/bot.db"
@@ -13,7 +15,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR}/data/bot.db"
 
-Base = declarative_base()
 
 async def get_waiting_user():
     ...
