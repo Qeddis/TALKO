@@ -112,3 +112,62 @@ async def anonymous_chat(message: Message):
             user.partner_id,
             message.text
         )
+
+
+@router.message(F.photo)
+async def send_photo(message: Message):
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(
+                User.telegram_id == message.from_user.id
+            )
+        )
+        user = result.scalar_one_or_none()
+
+        if not user or not user.partner_id:
+            return
+
+        await message.bot.send_photo(
+            user.partner_id,
+            message.photo[-1].file_id,
+            caption=message.caption
+        )
+
+
+@router.message(F.sticker)
+async def send_sticker(message: Message):
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(
+                User.telegram_id == message.from_user.id
+            )
+        )
+        user = result.scalar_one_or_none()
+
+        if not user or not user.partner_id:
+            return
+
+        await message.bot.send_sticker(
+            user.partner_id,
+            message.sticker.file_id
+        )
+
+
+@router.message(F.voice)
+async def send_voice(message: Message):
+    async with SessionLocal() as session:
+        result = await session.execute(
+
+select(User).where(
+                User.telegram_id == message.from_user.id
+            )
+        )
+        user = result.scalar_one_or_none()
+
+        if not user or not user.partner_id:
+            return
+
+        await message.bot.send_voice(
+            user.partner_id,
+            message.voice.file_id
+        )
