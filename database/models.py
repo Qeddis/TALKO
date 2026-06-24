@@ -30,6 +30,6 @@ class User(Base):
 
     banned: Mapped[bool] = mapped_column(default=False)
 
-    is_searching = Column(Boolean, default=False)
+    is_searching: Mapped[bool] = mapped_column(default=False)
     
-    partner_id = Column(BigInteger, nullable=True)
+    partner_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
