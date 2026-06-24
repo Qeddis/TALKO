@@ -1,3 +1,4 @@
+from sqlalchemy import BigInteger, Boolean, Column
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -28,3 +29,7 @@ class User(Base):
     vip: Mapped[bool] = mapped_column(default=False)
 
     banned: Mapped[bool] = mapped_column(default=False)
+
+    is_searching = Column(Boolean, default=False)
+    
+    partner_id = Column(BigInteger, nullable=True)
