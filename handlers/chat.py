@@ -12,6 +12,18 @@ from database.models import User
 
 router = Router()
 
+MENU_BUTTONS = {
+    "👤 پروفایل",
+    "👤 مشاهده مشخصات",
+    "👦 چت با پسر",
+    "👧 چت با دختر",
+    "💎 VIP",
+    "⚙️ تنظیمات",
+    "🔍 پیدا کردن مخاطب",
+    "🔄 مخاطب جدید",
+    "❌ پایان چت",
+}
+
 
 @router.message(F.text == "❌ پایان چت")
 async def stop_chat(message: Message):
@@ -92,48 +104,7 @@ async def new_partner(message: Message):
     await message.answer("🔎 در حال جستجوی مخاطب جدید...")
 
 
-MENU_BUTTONS = {
-    "👤 پروفایل",
-    "👤 مشاهده مشخصات",
-    "👦 چت با پسر",
-    "👧 چت با دختر",
-    "💎 VIP",
-    "⚙️ تنظیمات",
-    "🔍 پیدا کردن مخاطب",
-    "🔄 مخاطب جدید",
-    "❌ پایان چت",
-}
-
-
-@router.message(F.text)
-async def anonymous_chat(message: Message):
-    # دکمه‌های منو را رد کن
-    if message.text in MENU_BUTTONS:
-        return
-
-    # دستورات /age و /bio و ... را رد کن
-    if message.text.startswith("/"):
-        return
-
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(
-                User.telegram_id == message.from_user.id
-            )
-        )
-        user = result.scalar_one_or_none()
-
-        # اگر داخل چت نیست، کاری نکن
-        if not user or not user.partner_id:
-            return
-
-        # ارسال پیام به طرف مقابل
-        await message.bot.send_message(
-            user.partner_id,
-            message.text
-        )
-
-        @router.message(F.text == "👤 مشاهده مشخصات")
+@router.message(F.text == "👤 مشاهده مشخصات")
 async def show_partner_profile(message: Message):
     async with SessionLocal() as session:
         result = await session.execute(
@@ -167,3 +138,30 @@ async def show_partner_profile(message: Message):
         )
 
         await message.answer(text)
+
+
+@router.message(F.text)
+async def anonymous_chat(message: Message):
+    if message.text in MENU_BUTTONS:
+        return
+
+    if message.text.startswith("/"):
+        return
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(
+                User.telegram_id == message.from_user.id
+            )
+        )
+        user = result.scalar_one_or_none(
+
+)
+
+        if not user or not user.partner_id:
+            return
+
+        await message.bot.send_message(
+            user.partner_id,
+            message.text
+        )
