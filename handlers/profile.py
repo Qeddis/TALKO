@@ -20,6 +20,7 @@ async def profile(message: Message):
         user = result.scalar_one_or_none()
 
         if not user:
+            await message.answer("❌ پروفایل پیدا نشد.")
             return
 
         text = (
@@ -40,7 +41,11 @@ async def profile(message: Message):
 
 @router.message(F.text.startswith("/age "))
 async def set_age(message: Message):
-    age = message.text.replace("/age ", "")
+    try:
+        age = int(message.text.replace("/age ", ""))
+    except:
+        await message.answer("❌ سن باید عدد باشد.")
+        return
 
     async with SessionLocal() as session:
         result = await session.execute(
@@ -51,7 +56,7 @@ async def set_age(message: Message):
         user = result.scalar_one_or_none()
 
         if user:
-            user.age = int(age)
+            user.age = age
             await session.commit()
 
     await message.answer("✅ سن ذخیره شد.")
@@ -112,7 +117,3 @@ async def set_bio(message: Message):
             await session.commit()
 
     await message.answer("✅ بیو ذخیره شد.")
-
-    @router.message()
-async def test(message: Message):
-    print(repr(message.text))
