@@ -1,9 +1,13 @@
 from aiogram import Router, F
 from aiogram.types import Message
-
 from sqlalchemy import select
 
-from database.db import SessionLocal, end_chat
+from database.db import (
+    SessionLocal,
+    end_chat,
+    get_waiting_user,
+    set_partner,
+)
 from database.models import User
 
 router = Router()
@@ -34,6 +38,58 @@ async def stop_chat(message: Message):
             partner_id,
             "❌ طرف مقابل چت را پایان داد."
         )
+
+
+@router.message(F.text == "🔄 مخاطب جدید")
+async def new_partner(message: Message):
+    user_id = message.from_user.id
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(
+                User.telegram_id == user_id
+            )
+        )
+        user = result.scalar_one_or_none()
+
+        if user and user.partner_id:
+            partner_id = user.partner_id
+
+            await end_chat(user_id)
+            await end_chat(partner_id)
+
+            await message.bot.send_message(
+                partner_id,
+                "❌ طرف مقابل چت را ترک کرد."
+            )
+
+    waiting_user = await get_waiting_user()
+
+    if waiting_user and waiting_user.telegram_id != user_id:
+        await set_partner(user_id, waiting_user.telegram_id)
+        await set_partner(waiting_user.telegram_id, user_id)
+
+        await message.answer("✅ مخاطب جدید پیدا شد.")
+
+        await message.bot.send_message(
+            waiting_user.telegram_id,
+            "✅ مخاطب جدید پیدا شد."
+        )
+        return
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(
+                User.telegram_id == user_id
+            )
+        )
+        user = result.scalar_one_or_none()
+
+        if user:
+            user.is_searching = True
+            await session.commit()
+
+    await message.answer("🔎 در حال جستجوی مخاطب جدید...")
 
 
 @router.message(F.text)
