@@ -132,3 +132,38 @@ async def anonymous_chat(message: Message):
             user.partner_id,
             message.text
         )
+
+        @router.message(F.text == "👤 مشاهده مشخصات")
+async def show_partner_profile(message: Message):
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(
+                User.telegram_id == message.from_user.id
+            )
+        )
+        user = result.scalar_one_or_none()
+
+        if not user or not user.partner_id:
+            await message.answer("❌ شما داخل چتی نیستید.")
+            return
+
+        result = await session.execute(
+            select(User).where(
+                User.telegram_id == user.partner_id
+            )
+        )
+        partner = result.scalar_one_or_none()
+
+        if not partner:
+            await message.answer("❌ اطلاعات مخاطب پیدا نشد.")
+            return
+
+        text = (
+            f"👤 مشخصات مخاطب\n\n"
+            f"🎂 سن: {partner.age or 'ثبت نشده'}\n"
+            f"🚻 جنسیت: {partner.gender or 'ثبت نشده'}\n"
+            f"🌍 کشور: {partner.country or 'ثبت نشده'}\n"
+            f"📝 بیو:\n{partner.bio or 'ثبت نشده'}"
+        )
+
+        await message.answer(text)
