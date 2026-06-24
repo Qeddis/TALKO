@@ -24,12 +24,9 @@ async def main():
     dp = Dispatcher()
 
     dp.include_router(start_router)
-
-    dp.include_router(search_router)
-    
-    dp.include_router(chat_router)
-
     dp.include_router(profile_router)
+    dp.include_router(search_router)
+    dp.include_router(chat_router)
     
     await dp.start_polling(bot)
 
