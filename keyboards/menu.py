@@ -1,10 +1,12 @@
-from aiogram.types import ReplyKeyboardMarkup
-from aiogram.types import KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 main_menu = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🔍 پیدا کردن مخاطب")],
+        [KeyboardButton(text="👦 چت با پسر")],
+        [KeyboardButton(text="👧 چت با دختر")],
         [KeyboardButton(text="👤 پروفایل")],
+        [KeyboardButton(text="👤 مشاهده مشخصات")],
         [KeyboardButton(text="💎 VIP")],
         [KeyboardButton(text="⚙️ تنظیمات")],
         [KeyboardButton(text="🔄 مخاطب جدید")],
