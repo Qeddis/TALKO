@@ -15,6 +15,14 @@ DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR}/data/bot.db"
 
 Base = declarative_base()
 
+async def get_waiting_user():
+    ...
+
+async def set_partner(user_id, partner_id):
+    ...
+
+async def end_chat(user_id):
+    ...
 
 async def init_db():
     async with engine.begin() as conn:
