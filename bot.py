@@ -9,6 +9,10 @@ from database.db import init_db
 
 from handlers.start import router as start_router
 
+from handlers.search import router as search_router
+
+from handlers.chat import router as chat_router
+
 async def main():
 
     await init_db()
@@ -19,6 +23,10 @@ async def main():
 
     dp.include_router(start_router)
 
+    dp.include_router(search_router)
+    
+    dp.include_router(chat_router)
+    
     await dp.start_polling(bot)
 
 if __name__ == "__main__":

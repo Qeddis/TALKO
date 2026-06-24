@@ -46,3 +46,40 @@ async def add_user(telegram_id: int, username: str | None):
         await session.refresh(user)
 
         return user
+
+
+async def get_waiting_user():
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(
+                User.is_searching == True,
+                User.partner_id == None
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def set_partner(user_id, partner_id):
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.telegram_id == user_id)
+        )
+        user = result.scalar_one_or_none()
+
+        if user:
+            user.partner_id = partner_id
+            user.is_searching = False
+            await session.commit()
+
+
+async def end_chat(user_id):
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.telegram_id == user_id)
+        )
+        user = result.scalar_one_or_none()
+
+        if user:
+            user.partner_id = None
+            user.is_searching = False
+            await session.commit()
