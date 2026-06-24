@@ -92,8 +92,26 @@ async def new_partner(message: Message):
     await message.answer("🔎 در حال جستجوی مخاطب جدید...")
 
 
+MENU_BUTTONS = {
+    "👤 پروفایل",
+    "👤 مشاهده مشخصات",
+    "👦 چت با پسر",
+    "👧 چت با دختر",
+    "💎 VIP",
+    "⚙️ تنظیمات",
+    "🔍 پیدا کردن مخاطب",
+    "🔄 مخاطب جدید",
+    "❌ پایان چت",
+}
+
+
 @router.message(F.text)
 async def anonymous_chat(message: Message):
+    # دکمه‌های منو را رد کن
+    if message.text in MENU_BUTTONS:
+        return
+
+    # دستورات /age و /bio و ... را رد کن
     if message.text.startswith("/"):
         return
 
@@ -105,69 +123,12 @@ async def anonymous_chat(message: Message):
         )
         user = result.scalar_one_or_none()
 
+        # اگر داخل چت نیست، کاری نکن
         if not user or not user.partner_id:
             return
 
+        # ارسال پیام به طرف مقابل
         await message.bot.send_message(
             user.partner_id,
             message.text
-        )
-
-
-@router.message(F.photo)
-async def send_photo(message: Message):
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(
-                User.telegram_id == message.from_user.id
-            )
-        )
-        user = result.scalar_one_or_none()
-
-        if not user or not user.partner_id:
-            return
-
-        await message.bot.send_photo(
-            user.partner_id,
-            message.photo[-1].file_id,
-            caption=message.caption
-        )
-
-
-@router.message(F.sticker)
-async def send_sticker(message: Message):
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(
-                User.telegram_id == message.from_user.id
-            )
-        )
-        user = result.scalar_one_or_none()
-
-        if not user or not user.partner_id:
-            return
-
-        await message.bot.send_sticker(
-            user.partner_id,
-            message.sticker.file_id
-        )
-
-
-@router.message(F.voice)
-async def send_voice(message: Message):
-    async with SessionLocal() as session:
-        result = await session.execute(
-
-select(User).where(
-                User.telegram_id == message.from_user.id
-            )
-        )
-        user = result.scalar_one_or_none()
-
-        if not user or not user.partner_id:
-            return
-
-        await message.bot.send_voice(
-            user.partner_id,
-            message.voice.file_id
         )
