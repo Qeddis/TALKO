@@ -8,6 +8,11 @@ DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR}/data/bot.db"
 engine = create_async_engine(DATABASE_URL)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+(BASE_DIR / "data").mkdir(exist_ok=True)
+
+DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR}/data/bot.db"
+
 Base = declarative_base()
 
 
