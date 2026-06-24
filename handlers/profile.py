@@ -112,3 +112,7 @@ async def set_bio(message: Message):
             await session.commit()
 
     await message.answer("✅ بیو ذخیره شد.")
+
+    @router.message()
+async def test(message: Message):
+    print(repr(message.text))
