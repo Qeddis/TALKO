@@ -5,7 +5,10 @@ from database.db import get_user
 from keyboards.menu import main_menu
 from keyboards.more_menu import more_menu
 
-router = Router()@router.message(F.text == "⚙️ بیشتر")
+router = Router()
+
+
+@router.message(F.text == "⚙️ بیشتر")
 async def more(message: Message):
     await message.answer("⚙️ منوی بیشتر", reply_markup=more_menu)
 
