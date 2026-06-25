@@ -85,13 +85,18 @@ async def end_chat(user_id):
             await session.commit()
 
 
-async def get_waiting_user_by_gender(gender: str):
+async def get_waiting_user_by_gender(
+    target_gender: str,
+    my_id: int,
+):
     async with SessionLocal() as session:
         result = await session.execute(
             select(User).where(
                 User.is_searching == True,
-                User.gender == gender,
-                User.partner_id == None
+                User.gender == target_gender,
+                User.partner_id == None,
+                User.telegram_id != my_id
             )
         )
+
         return result.scalars().first()

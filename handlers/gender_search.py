@@ -39,7 +39,10 @@ async def start_search(message: Message, gender: str):
         user.search_gender = gender
         await session.commit()
 
-    waiting_user = await get_waiting_user_by_gender(gender)
+    waiting_user = await get_waiting_user_by_gender(
+    gender,
+    user_id
+)
 
     if waiting_user and waiting_user.telegram_id != user_id:
         await set_partner(
