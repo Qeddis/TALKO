@@ -14,14 +14,17 @@ router = Router()
 
 MENU_BUTTONS = {
     "👤 پروفایل",
-    "👤 مشاهده مشخصات",
+    "📄 مشاهده پروفایل",
+    "✏️ ویرایش پروفایل",
+    "👤 مشاهده مشخصات مخاطب",
     "👦 چت با پسر",
     "👧 چت با دختر",
+    "🌍 چت تصادفی",
     "💎 VIP",
-    "⚙️ تنظیمات",
-    "🔍 پیدا کردن مخاطب",
+    "⚙️ بیشتر",
     "🔄 مخاطب جدید",
     "❌ پایان چت",
+    "⬅️ بازگشت",
 }
 
 
@@ -104,7 +107,7 @@ async def new_partner(message: Message):
     await message.answer("🔎 در حال جستجوی مخاطب جدید...")
 
 
-@router.message(F.text == "👤 مشاهده مشخصات")
+@router.message(F.text == "👤 مشاهده مشخصات مخاطب")
 async def show_partner_profile(message: Message):
     async with SessionLocal() as session:
         result = await session.execute(
@@ -140,6 +143,72 @@ async def show_partner_profile(message: Message):
         await message.answer(text)
 
 
+async def get_partner(message: Message):
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(
+                User.telegram_id == message.from_user.id
+            )
+        )
+        user = result.scalar_one_or_none()
+
+        if not user or not user.partner_id:
+            return None
+
+        return user.partner_id
+
+
+@router.message(F.photo)
+async def send_photo(message: Message):
+    partner_id = await get_partner(message)
+    if not partner_id:
+        return
+
+    await message.bot.send_photo(
+        partner_id,
+        message.photo[-1].file_id,
+        caption=message.caption
+    )
+
+
+@router.message(F.voice)
+async def send_voice(message: Message):
+    partner_id = await get_partner(message)
+    if not partner_id:
+        return
+
+    await message.bot.send_voice(
+        partner_id,
+        message.voice.file_id
+    )
+
+
+@router.message(F.video)
+async def send_video(message: Message):
+    partner_id = await get_partner(message)
+    if not partner_id:
+        return
+
+    await message.bot.send_video(
+        partner_id,
+        message.video.file_id,
+        caption=message.caption
+    )
+
+
+@router.message(F.document)
+async def send_document(message: Message):
+    partner_id = await get_partner(message)
+    if not partner_id:
+        return
+
+    await message.bot.send_document(
+        partner_id,
+        message.document.file_id,
+        caption=message.caption
+    )
+
+
 @router.message(F.text)
 async def anonymous_chat(message: Message):
     if message.text in MENU_BUTTONS:
@@ -148,20 +217,12 @@ async def anonymous_chat(message: Message):
     if message.text.startswith("/"):
         return
 
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(
-                User.telegram_id == message.from_user.id
-            )
-        )
-        user = result.scalar_one_or_none(
+    partner_id = await get_partner(message)
 
-)
+    if not partner_id:
+        return
 
-        if not user or not user.partner_id:
-            return
-
-        await message.bot.send_message(
-            user.partner_id,
-            message.text
-        )
+    await message.bot.send_message(
+        partner_id,
+        message.text
+    )
