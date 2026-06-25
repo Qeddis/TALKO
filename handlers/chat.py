@@ -157,6 +157,41 @@ async def get_partner(message: Message):
 
         return user.partner_id
 
+@router.message(F.text == "📢 گزارش کاربر")
+async def report_user(message: Message):
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(
+                User.telegram_id == message.from_user.id
+            )
+        )
+        user = result.scalar_one_or_none()
+
+        if not user or not user.partner_id:
+            await message.answer(
+                "❌ شما داخل چتی نیستید."
+            )
+            return
+
+        result = await session.execute(
+            select(User).where(
+                User.telegram_id == user.partner_id
+            )
+        )
+        partner = result.scalar_one_or_none()
+
+        if not partner:
+            await message.answer(
+                "❌ کاربر پیدا نشد."
+            )
+            return
+
+        partner.reports += 1
+        await session.commit()
+
+        await message.answer(
+            "✅ گزارش شما ثبت شد."
+        )
 
 @router.message(F.photo)
 async def send_photo(message: Message):
