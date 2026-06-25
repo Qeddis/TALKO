@@ -15,6 +15,8 @@ from handlers.chat import router as chat_router
 
 from handlers.profile import router as profile_router
 
+from handlers.gender_search import router as gender_router
+
 async def main():
 
     await init_db()
@@ -27,6 +29,7 @@ async def main():
     dp.include_router(profile_router)
     dp.include_router(search_router)
     dp.include_router(chat_router)
+    dp.include_router(gender_router)
     
     await dp.start_polling(bot)
 

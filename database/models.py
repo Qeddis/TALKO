@@ -16,6 +16,7 @@ class User(Base):
     username: Mapped[str | None]
     age: Mapped[int | None]
     gender: Mapped[str | None]
+    search_gender: Mapped[str | None]
     country: Mapped[str | None]
     bio: Mapped[str | None]
 
