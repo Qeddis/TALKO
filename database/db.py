@@ -84,6 +84,7 @@ async def end_chat(user_id):
             user.is_searching = False
             await session.commit()
 
+
 async def get_waiting_user_by_gender(gender: str):
     async with SessionLocal() as session:
         result = await session.execute(
