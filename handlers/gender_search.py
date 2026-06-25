@@ -1,13 +1,13 @@
 from aiogram import Router, F
 from aiogram.types import Message
-from sqlalchemy import select
 
 from database.db import (
-    SessionLocal,
+    get_user,
     get_waiting_user_by_gender,
     set_partner,
+    start_searching,
 )
-from database.models import User
+from handlers.chat_helpers import notify_chat_match, notify_searching
 
 router = Router()
 
@@ -24,59 +24,32 @@ async def search_girl(message: Message):
 
 async def start_search(message: Message, gender: str):
     user_id = message.from_user.id
+    user = await get_user(user_id)
 
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(
-                User.telegram_id == user_id
-            )
-        )
-        user = result.scalar_one_or_none()
-
-        if not user:
-            return
-
-        user.search_gender = gender
-        await session.commit()
-
-    waiting_user = await get_waiting_user_by_gender(
-    gender,
-    user_id
-)
-
-    if waiting_user and waiting_user.telegram_id != user_id:
-        await set_partner(
-            user_id,
-            waiting_user.telegram_id
-        )
-
-        await set_partner(
-            waiting_user.telegram_id,
-            user_id
-        )
-
-        await message.answer("✅ مخاطب پیدا شد.")
-
-        await message.bot.send_message(
-            waiting_user.telegram_id,
-            "✅ مخاطب پیدا شد."
-        )
-
+    if not user:
         return
 
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(
-                User.telegram_id == user_id
-            )
+    if user.partner_id:
+        await message.answer("❌ اول چت فعلی را پایان دهید.")
+        return
+
+    if user.is_searching:
+        await message.answer("🔎 همین الان در صف جستجو هستید.")
+        return
+
+    if not user.gender:
+        await message.answer(
+            "❌ برای جستجوی جنسیتی، اول جنسیت خود را در پروفایل ثبت کنید."
         )
+        return
 
-        user = result.scalar_one_or_none()
+    waiting_user = await get_waiting_user_by_gender(gender, user_id)
 
-        if user:
-            user.is_searching = True
-            await session.commit()
+    if waiting_user:
+        await set_partner(user_id, waiting_user.telegram_id)
+        await set_partner(waiting_user.telegram_id, user_id)
+        await notify_chat_match(message.bot, user_id, waiting_user.telegram_id)
+        return
 
-    await message.answer(
-        f"🔎 در حال جستجوی {gender}..."
-    )
+    await start_searching(user_id, gender)
+    await notify_searching(message, f"🔎 در حال جستجوی {gender}...")

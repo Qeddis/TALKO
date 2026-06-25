@@ -36,3 +36,11 @@ class User(Base):
         BigInteger,
         nullable=True
     )
+
+
+class BlockedUser(Base):
+    __tablename__ = "blocked_users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger)
+    blocked_id: Mapped[int] = mapped_column(BigInteger)
