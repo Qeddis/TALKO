@@ -7,6 +7,8 @@ from config import BOT_TOKEN
 
 from database.db import init_db
 
+from handlers.menu import router as menu_router
+
 from handlers.start import router as start_router
 
 from handlers.search import router as search_router
@@ -26,6 +28,7 @@ async def main():
     dp = Dispatcher()
 
     dp.include_router(start_router)
+    dp.include_router(menu_router)
     dp.include_router(profile_router)
     dp.include_router(search_router)
     dp.include_router(chat_router)

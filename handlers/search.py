@@ -12,7 +12,7 @@ from sqlalchemy import select
 router = Router()
 
 
-@router.message(F.text == "🔍 پیدا کردن مخاطب")
+@router.message(F.text == "🌍 چت تصادفی")
 async def find_partner(message: Message):
     user_id = message.from_user.id
 
@@ -31,8 +31,11 @@ async def find_partner(message: Message):
 
     async with SessionLocal() as session:
         result = await session.execute(
-            select(User).where(User.telegram_id == user_id)
+            select(User).where(
+                User.telegram_id == user_id
+            )
         )
+
         user = result.scalar_one()
 
         user.is_searching = True
