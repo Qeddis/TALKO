@@ -9,6 +9,8 @@ from database.db import init_db
 
 from handlers.menu import router as menu_router
 
+from handlers.menu import router as menu_router
+
 from handlers.start import router as start_router
 
 from handlers.search import router as search_router

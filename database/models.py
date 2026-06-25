@@ -22,6 +22,9 @@ class User(Base):
 
     looking_for: Mapped[str | None]
 
+    blocked_users: Mapped[str | None]
+    reports: Mapped[int] = mapped_column(default=0)
+
     coins: Mapped[int] = mapped_column(default=0)
     vip: Mapped[bool] = mapped_column(default=False)
     banned: Mapped[bool] = mapped_column(default=False)

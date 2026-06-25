@@ -20,7 +20,9 @@ async def init_db():
 async def get_user(telegram_id: int):
     async with SessionLocal() as session:
         result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
+            select(User).where(
+                User.telegram_id == telegram_id
+            )
         )
         return result.scalar_one_or_none()
 
@@ -28,7 +30,9 @@ async def get_user(telegram_id: int):
 async def add_user(telegram_id: int, username: str | None):
     async with SessionLocal() as session:
         result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
+            select(User).where(
+                User.telegram_id == telegram_id
+            )
         )
 
         user = result.scalar_one_or_none()
@@ -48,21 +52,30 @@ async def add_user(telegram_id: int, username: str | None):
         return user
 
 
-async def get_waiting_user():
+async def get_waiting_user(my_id: int = 0):
     async with SessionLocal() as session:
         result = await session.execute(
             select(User).where(
                 User.is_searching == True,
-                User.partner_id == None
+                User.partner_id == None,
+                User.telegram_id != my_id
             )
         )
-        return result.scalar_one_or_none()
+
+        users = result.scalars().all()
+
+        for user in users:
+            return user
+
+        return None
 
 
 async def set_partner(user_id, partner_id):
     async with SessionLocal() as session:
         result = await session.execute(
-            select(User).where(User.telegram_id == user_id)
+            select(User).where(
+                User.telegram_id == user_id
+            )
         )
         user = result.scalar_one_or_none()
 
@@ -75,7 +88,9 @@ async def set_partner(user_id, partner_id):
 async def end_chat(user_id):
     async with SessionLocal() as session:
         result = await session.execute(
-            select(User).where(User.telegram_id == user_id)
+            select(User).where(
+                User.telegram_id == user_id
+            )
         )
         user = result.scalar_one_or_none()
 
