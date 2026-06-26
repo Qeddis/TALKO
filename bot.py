@@ -15,6 +15,7 @@ from handlers.menu import router as menu_router
 from handlers.profile import router as profile_router
 from handlers.search import router as search_router
 from handlers.start import router as start_router
+from handlers.referral import router as referral_router
 from handlers.vip import router as vip_router
 from middleware.banned import BannedMiddleware
 
@@ -49,6 +50,7 @@ async def main():
     dp.include_router(help_router)
     dp.include_router(admin_router)
     dp.include_router(vip_router)
+    dp.include_router(referral_router)
     dp.include_router(profile_router)
     dp.include_router(menu_router)
     dp.include_router(group_router)

@@ -39,6 +39,8 @@ class User(Base):
 
     room_id: Mapped[int | None] = mapped_column(nullable=True)
 
+    referred_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
 
 class ChatRoom(Base):
     __tablename__ = "chat_rooms"

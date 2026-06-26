@@ -1,8 +1,11 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parent
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
@@ -21,3 +24,17 @@ VIP_COIN_PRICE = int(os.getenv("VIP_COIN_PRICE", "100"))
 VIP_STARS_PRICE = int(os.getenv("VIP_STARS_PRICE", "50"))
 SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "")
 STARTER_COINS = int(os.getenv("STARTER_COINS", "20"))
+
+_ref = os.getenv("DATABASE_URL")
+if _ref:
+    _db = _ref
+    if _db.startswith("postgres://"):
+        _db = "postgresql+asyncpg://" + _db[len("postgres://"):]
+    elif _db.startswith("postgresql://") and "+asyncpg" not in _db:
+        _db = "postgresql+asyncpg://" + _db[len("postgresql://"):]
+    DATABASE_URL = _db
+else:
+    DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR / 'database' / 'bot.db'}"
+
+REFERRAL_REWARD = int(os.getenv("REFERRAL_REWARD", "10"))
+REFERRAL_BONUS = int(os.getenv("REFERRAL_BONUS", "10"))

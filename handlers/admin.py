@@ -52,7 +52,8 @@ async def admin_stats(message: Message):
         f"🔎 در صف جستجو: {stats['searching']}\n"
         f"💬 چت فعال: {stats['in_chat']}\n"
         f"🚫 مسدود: {stats['banned']}\n"
-        f"💎 VIP: {stats['vip']}"
+        f"💎 VIP: {stats['vip']}\n"
+        f"🎁 دعوت‌های ثبت‌شده: {stats['referrals']}"
     )
 
 

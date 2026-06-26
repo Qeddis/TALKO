@@ -1,21 +1,60 @@
+from dataclasses import dataclass
 from pathlib import Path
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from config import REPORTS_FOR_BAN, STARTER_COINS, VIP_COIN_PRICE
+from config import (
+    DATABASE_URL,
+    REFERRAL_BONUS,
+    REFERRAL_REWARD,
+    REPORTS_FOR_BAN,
+    STARTER_COINS,
+    VIP_COIN_PRICE,
+)
 from database.models import Base, BlockedUser, ChatRoom, Report, User
 
 BASE_DIR = Path(__file__).resolve().parent
-DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR}/bot.db"
 
-engine = create_async_engine(DATABASE_URL)
+engine = create_async_engine(DATABASE_URL, echo=False)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+
+@dataclass
+class AddUserResult:
+    user: User
+    is_new: bool
+    referrer_id: int | None = None
+
+
+async def _migrate_schema() -> None:
+    """Add columns missing from older databases."""
+    is_sqlite = DATABASE_URL.startswith("sqlite")
+    is_postgres = DATABASE_URL.startswith("postgresql")
+
+    if not is_sqlite and not is_postgres:
+        return
+
+    async with engine.begin() as conn:
+        if is_postgres:
+            await conn.execute(
+                text(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by BIGINT"
+                )
+            )
+        elif is_sqlite:
+            result = await conn.execute(text("PRAGMA table_info(users)"))
+            columns = {row[1] for row in result.fetchall()}
+            if "referred_by" not in columns:
+                await conn.execute(
+                    text("ALTER TABLE users ADD COLUMN referred_by BIGINT")
+                )
 
 
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await _migrate_schema()
     await seed_default_rooms()
 
 
@@ -42,7 +81,11 @@ async def get_user(telegram_id: int) -> User | None:
         return result.scalar_one_or_none()
 
 
-async def add_user(telegram_id: int, username: str | None) -> User:
+async def add_user(
+    telegram_id: int,
+    username: str | None,
+    referrer_id: int | None = None,
+) -> AddUserResult:
     async with SessionLocal() as session:
         result = await session.execute(
             select(User).where(User.telegram_id == telegram_id)
@@ -53,13 +96,40 @@ async def add_user(telegram_id: int, username: str | None) -> User:
             if username and user.username != username:
                 user.username = username
                 await session.commit()
-            return user
+            return AddUserResult(user=user, is_new=False)
 
-        user = User(telegram_id=telegram_id, username=username, coins=STARTER_COINS)
+        valid_referrer_id: int | None = None
+        if referrer_id and referrer_id != telegram_id:
+            ref_result = await session.execute(
+                select(User).where(User.telegram_id == referrer_id)
+            )
+            referrer = ref_result.scalar_one_or_none()
+            if referrer and not referrer.banned:
+                valid_referrer_id = referrer_id
+
+        starter = STARTER_COINS + (REFERRAL_BONUS if valid_referrer_id else 0)
+        user = User(
+            telegram_id=telegram_id,
+            username=username,
+            coins=starter,
+            referred_by=valid_referrer_id,
+        )
         session.add(user)
+
+        if valid_referrer_id:
+            ref_result = await session.execute(
+                select(User).where(User.telegram_id == valid_referrer_id)
+            )
+            referrer = ref_result.scalar_one()
+            referrer.coins += REFERRAL_REWARD
+
         await session.commit()
         await session.refresh(user)
-        return user
+        return AddUserResult(
+            user=user,
+            is_new=True,
+            referrer_id=valid_referrer_id,
+        )
 
 
 async def is_blocked(user_id: int, other_id: int) -> bool:
@@ -264,6 +334,9 @@ async def get_stats() -> dict[str, int]:
         vip = await session.scalar(
             select(func.count()).select_from(User).where(User.vip == True)
         ) or 0
+        referrals = await session.scalar(
+            select(func.count()).select_from(User).where(User.referred_by != None)
+        ) or 0
 
     return {
         "total": total,
@@ -271,6 +344,7 @@ async def get_stats() -> dict[str, int]:
         "in_chat": in_chat // 2,
         "banned": banned,
         "vip": vip,
+        "referrals": referrals,
     }
 
 
@@ -465,3 +539,15 @@ async def activate_vip(telegram_id: int) -> bool:
         user.vip = True
         await session.commit()
         return True
+
+
+async def get_referral_count(telegram_id: int) -> int:
+    async with SessionLocal() as session:
+        return (
+            await session.scalar(
+                select(func.count())
+                .select_from(User)
+                .where(User.referred_by == telegram_id)
+            )
+            or 0
+        )

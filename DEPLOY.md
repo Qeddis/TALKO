@@ -45,6 +45,8 @@ VIP_COIN_PRICE=100
 VIP_STARS_PRICE=50
 STARTER_COINS=20
 SUPPORT_USERNAME=YourSupportBot
+REFERRAL_REWARD=10
+REFERRAL_BONUS=10
 ```
 
 اجرا:
@@ -149,42 +151,69 @@ worker: python bot.py
 
 ---
 
-## ۵. فعال‌سازی پرداخت استار (VIP)
+## ۵. پرداخت استار (VIP)
 
-1. در @BotFather → ربات → **Payments** → **Telegram Stars** را فعال کن
-2. `VIP_STARS_PRICE=50` در `.env` (50 استار)
-3. برای غیرفعال کردن: `VIP_STARS_PRICE=0`
+**نیازی به تنظیم در BotFather نیست.** برخلاف پرداخت ریالی/ارزی، Stars با currency=`XTR` و `provider_token` خالی مستقیم کار می‌کند.
+
+1. `VIP_STARS_PRICE=50` در `.env` (۵۰ استار)
+2. برای غیرفعال کردن: `VIP_STARS_PRICE=0`
+3. در ربات: `💎 VIP` → `⭐ خرید VIP با استار`
+
+> اگر در BotFather بخش Payments فقط Stripe/YooKassa و... دیدی، طبیعی است — آن‌ها برای کالای فیزیکی است. Stars جداگانه فعال نمی‌شود.
+
+### برداشت درآمد Stars
+
+Stars دریافتی را از **Fragment** ([fragment.com](https://fragment.com)) به TON تبدیل کن. حداقل ۱۰۰۰ استار و ۲۱ روز انتظار لازم است.
 
 ---
 
-## ۶. PostgreSQL (پیشنهادی برای Production)
+## ۶. PostgreSQL (Production)
 
-SQLite برای تست خوب است؛ روی سرور واقعی PostgreSQL پایدارتر است.
+SQLite برای تست محلی خوب است. روی Railway/Render/VPS واقعی PostgreSQL پایدارتر است.
+
+### Railway
+
+1. در پروژه Railway یک **PostgreSQL** plugin اضافه کن
+2. متغیر `DATABASE_URL` را کپی کن — اگر با `postgres://` شروع شد، در `.env` این‌طور بنویس:
+
+```env
+DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/railway
+```
+
+> SQLAlchemy به `postgresql+asyncpg://` نیاز دارد (نه `postgres://`).
+
+### VPS (Ubuntu)
+
+```bash
+sudo apt install -y postgresql postgresql-contrib
+sudo -u postgres psql -c "CREATE USER talko WITH PASSWORD 'your_password';"
+sudo -u postgres psql -c "CREATE DATABASE talko OWNER talko;"
+```
 
 `.env`:
 
 ```env
-DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/talko
+DATABASE_URL=postgresql+asyncpg://talko:your_password@localhost:5432/talko
 ```
 
-در `database/db.py` خط `DATABASE_URL` را از env بخوان:
-
-```python
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    f"sqlite+aiosqlite:///{BASE_DIR}/bot.db",
-)
-```
-
-و به `requirements.txt` اضافه کن:
-
-```
-asyncpg
-```
+ربات در اولین اجرا جداول را خودکار می‌سازد.
 
 ---
 
-## ۷. دستورات ادمین
+## ۷. سیستم دعوت (Referral)
+
+| متغیر | پیش‌فرض | معنی |
+|--------|---------|------|
+| `REFERRAL_REWARD` | 10 | سکه برای دعوت‌کننده |
+| `REFERRAL_BONUS` | 10 | سکه اضافه برای کاربر جدید |
+
+لینک دعوت: `https://t.me/YourBot?start=ref<telegram_id>`
+
+کاربر از **👤 پروفایل → 🎁 دعوت دوستان** لینک خودش را می‌بیند.
+
+---
+
+## ۸. دستورات ادمین
 
 | دستور | کار |
 |--------|-----|
@@ -199,19 +228,19 @@ asyncpg
 
 ---
 
-## ۸. عیب‌یابی
+## ۹. عیب‌یابی
 
 | مشکل | راه‌حل |
 |------|--------|
 | `BOT_TOKEN is not set` | `.env` را چک کن |
 | ربات جواب نمی‌دهد | `systemctl status talko` یا لاگ Railway |
-| VIP استار کار نمی‌کند | Stars در BotFather فعال باشد |
+| VIP استار کار نمی‌کند | `VIP_STARS_PRICE>0` باشد؛ نیازی به BotFather Payments نیست |
 | دیتابیس خالی شد | از PostgreSQL + backup استفاده کن |
 | Conflict polling | فقط یک instance ربات اجرا شود |
 
 ---
 
-## ۹. امنیت
+## ۱۰. امنیت
 
 - `.env` را **هرگز** commit نکن (در `.gitignore` است)
 - `ADMIN_IDS` را فقط با آیدی خودت پر کن
@@ -219,7 +248,7 @@ asyncpg
 
 ---
 
-## ۱۰. آپدیت ربات
+## ۱۱. آپدیت ربات
 
 ```bash
 cd /opt/talko

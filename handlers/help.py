@@ -2,7 +2,7 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from config import ADMIN_IDS, VIP_COIN_PRICE, VIP_STARS_PRICE
+from config import ADMIN_IDS, REFERRAL_BONUS, REFERRAL_REWARD, VIP_COIN_PRICE, VIP_STARS_PRICE
 from keyboards.menu import main_menu
 
 router = Router()
@@ -14,12 +14,14 @@ HELP_TEXT = (
     "👥 چت گروهی — اتاق عمومی یا VIP (ناشناس)\n"
     "👤 پروفایل — مشاهده و ویرایش اطلاعات\n"
     "💎 VIP — خرید با سکه یا استار تلگرام\n"
+    "🎁 دعوت دوستان — سکه رایگان با لینک دعوت\n"
     "⚙️ بیشتر — کنترل چت (پایان، بلاک، گزارش، ...)\n\n"
     "در حین چت خصوصی:\n"
     "• متن، عکس، ویس، ویدیو، استیکر و فایل\n"
     "• ❌ پایان چت | 🔄 مخاطب جدید\n"
     "• 🚫 بلاک | 📢 گزارش\n\n"
     f"💎 VIP: {VIP_COIN_PRICE} سکه یا {VIP_STARS_PRICE} استار\n"
+    f"🎁 دعوت: +{REFERRAL_REWARD} سکه برای تو، +{REFERRAL_BONUS} برای دوست\n"
     "⏹ لغو جستجو — وقتی در صف هستید"
 )
 
