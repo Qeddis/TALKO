@@ -9,13 +9,29 @@ from keyboards.profile_menu import profile_menu
 
 router = Router()
 
-waiting_age: set[int] = set()
-waiting_gender: set[int] = set()
-waiting_country: set[int] = set()
-waiting_bio: set[int] = set()
+MAX_COUNTRY_LENGTH = 50
+MAX_BIO_LENGTH = 300
+
+waiting_age: dict[int, float] = {}
+waiting_gender: dict[int, float] = {}
+waiting_country: dict[int, float] = {}
+waiting_bio: dict[int, float] = {}
+
+_EDIT_TIMEOUT = 300  # 5 minutes
+
+
+def _prune_stale() -> None:
+    from time import time
+
+    now = time()
+    for store in (waiting_age, waiting_gender, waiting_country, waiting_bio):
+        stale = [uid for uid, ts in store.items() if now - ts > _EDIT_TIMEOUT]
+        for uid in stale:
+            del store[uid]
 
 
 def is_editing_profile(message: Message) -> bool:
+    _prune_stale()
     user_id = message.from_user.id
     return (
         user_id in waiting_age
@@ -63,26 +79,34 @@ async def edit_profile(message: Message):
 
 @router.message(F.text == "🎂 ثبت سن")
 async def ask_age(message: Message):
-    waiting_age.add(message.from_user.id)
+    from time import time
+
+    waiting_age[message.from_user.id] = time()
     await message.answer("🎂 سن خود را وارد کنید:")
 
 
 @router.message(F.text == "🚻 ثبت جنسیت")
 async def ask_gender(message: Message):
-    waiting_gender.add(message.from_user.id)
+    from time import time
+
+    waiting_gender[message.from_user.id] = time()
     await message.answer("🚻 جنسیت خود را وارد کنید:\nپسر یا دختر")
 
 
 @router.message(F.text == "🌍 ثبت کشور")
 async def ask_country(message: Message):
-    waiting_country.add(message.from_user.id)
-    await message.answer("🌍 کشور خود را وارد کنید:")
+    from time import time
+
+    waiting_country[message.from_user.id] = time()
+    await message.answer(f"🌍 کشور خود را وارد کنید (حداکثر {MAX_COUNTRY_LENGTH} کاراکتر):")
 
 
 @router.message(F.text == "📝 ثبت بیو")
 async def ask_bio(message: Message):
-    waiting_bio.add(message.from_user.id)
-    await message.answer("📝 بیو خود را وارد کنید:")
+    from time import time
+
+    waiting_bio[message.from_user.id] = time()
+    await message.answer(f"📝 بیو خود را وارد کنید (حداکثر {MAX_BIO_LENGTH} کاراکتر):")
 
 
 @router.message(is_editing_profile, F.text)
@@ -109,7 +133,7 @@ async def save_profile(message: Message):
                 await message.answer("❌ سن معتبر وارد کنید (۱۰ تا ۱۰۰).")
                 return
 
-            waiting_age.discard(user_id)
+            waiting_age.pop(user_id, None)
             await session.commit()
             await message.answer("✅ سن ذخیره شد.")
             return
@@ -121,21 +145,33 @@ async def save_profile(message: Message):
                 return
 
             user.gender = gender
-            waiting_gender.discard(user_id)
+            waiting_gender.pop(user_id, None)
             await session.commit()
             await message.answer("✅ جنسیت ذخیره شد.")
             return
 
         if user_id in waiting_country:
-            user.country = message.text.strip()
-            waiting_country.discard(user_id)
+            country = message.text.strip()
+            if len(country) > MAX_COUNTRY_LENGTH:
+                await message.answer(
+                    f"❌ کشور حداکثر {MAX_COUNTRY_LENGTH} کاراکتر باشد."
+                )
+                return
+            user.country = country
+            waiting_country.pop(user_id, None)
             await session.commit()
             await message.answer("✅ کشور ذخیره شد.")
             return
 
         if user_id in waiting_bio:
-            user.bio = message.text.strip()
-            waiting_bio.discard(user_id)
+            bio = message.text.strip()
+            if len(bio) > MAX_BIO_LENGTH:
+                await message.answer(
+                    f"❌ بیو حداکثر {MAX_BIO_LENGTH} کاراکتر باشد."
+                )
+                return
+            user.bio = bio
+            waiting_bio.pop(user_id, None)
             await session.commit()
             await message.answer("✅ بیو ذخیره شد.")
             return
