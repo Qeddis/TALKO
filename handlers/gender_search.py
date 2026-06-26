@@ -33,6 +33,10 @@ async def start_search(message: Message, gender: str):
         await message.answer("❌ اول چت فعلی را پایان دهید.")
         return
 
+    if user.room_id:
+        await message.answer("❌ اول از اتاق گروهی خارج شوید.")
+        return
+
     if user.is_searching:
         await message.answer("🔎 همین الان در صف جستجو هستید.")
         return

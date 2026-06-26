@@ -9,11 +9,13 @@ from database.db import init_db
 from handlers.admin import router as admin_router
 from handlers.chat import router as chat_router
 from handlers.gender_search import router as gender_router
+from handlers.group import router as group_router
 from handlers.help import router as help_router
 from handlers.menu import router as menu_router
 from handlers.profile import router as profile_router
 from handlers.search import router as search_router
 from handlers.start import router as start_router
+from handlers.vip import router as vip_router
 from middleware.banned import BannedMiddleware
 
 logging.basicConfig(
@@ -46,8 +48,10 @@ async def main():
     dp.include_router(start_router)
     dp.include_router(help_router)
     dp.include_router(admin_router)
-    dp.include_router(menu_router)
+    dp.include_router(vip_router)
     dp.include_router(profile_router)
+    dp.include_router(menu_router)
+    dp.include_router(group_router)
     dp.include_router(search_router)
     dp.include_router(gender_router)
     dp.include_router(chat_router)

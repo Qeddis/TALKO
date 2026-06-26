@@ -3,8 +3,8 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from config import REPORTS_FOR_BAN
-from database.models import Base, BlockedUser, Report, User
+from config import REPORTS_FOR_BAN, STARTER_COINS, VIP_COIN_PRICE
+from database.models import Base, BlockedUser, ChatRoom, Report, User
 
 BASE_DIR = Path(__file__).resolve().parent
 DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR}/bot.db"
@@ -16,6 +16,22 @@ SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await seed_default_rooms()
+
+
+async def seed_default_rooms() -> None:
+    defaults = [
+        ("🌐 اتاق عمومی", False),
+        ("💎 اتاق VIP", True),
+    ]
+    async with SessionLocal() as session:
+        for name, vip_only in defaults:
+            result = await session.execute(
+                select(ChatRoom).where(ChatRoom.name == name)
+            )
+            if result.scalar_one_or_none() is None:
+                session.add(ChatRoom(name=name, vip_only=vip_only))
+        await session.commit()
 
 
 async def get_user(telegram_id: int) -> User | None:
@@ -39,7 +55,7 @@ async def add_user(telegram_id: int, username: str | None) -> User:
                 await session.commit()
             return user
 
-        user = User(telegram_id=telegram_id, username=username)
+        user = User(telegram_id=telegram_id, username=username, coins=STARTER_COINS)
         session.add(user)
         await session.commit()
         await session.refresh(user)
@@ -96,6 +112,7 @@ async def _find_waiting_user(searcher: User) -> User | None:
             select(User).where(
                 User.is_searching == True,
                 User.partner_id == None,
+                User.room_id == None,
                 User.telegram_id != searcher.telegram_id,
                 User.banned == False,
             )
@@ -149,7 +166,13 @@ async def match_partners(user_id: int, partner_id: int) -> bool:
 
         if not user or not partner:
             return False
-        if partner.partner_id or not partner.is_searching:
+        if user.telegram_id == partner_id:
+            return False
+        if user.partner_id or partner.partner_id:
+            return False
+        if user.room_id or partner.room_id:
+            return False
+        if not partner.is_searching:
             return False
 
         user.partner_id = partner_id
@@ -189,6 +212,7 @@ async def end_chat(user_id: int) -> None:
             user.partner_id = None
             user.is_searching = False
             user.search_gender = None
+            user.room_id = None
             await session.commit()
 
 
@@ -263,6 +287,7 @@ async def set_banned(telegram_id: int, banned: bool) -> bool:
         if banned:
             user.is_searching = False
             user.partner_id = None
+            user.room_id = None
         await session.commit()
         return True
 
@@ -325,6 +350,7 @@ async def increment_reports(telegram_id: int) -> int:
         if user.reports >= REPORTS_FOR_BAN:
             user.banned = True
             user.is_searching = False
+            user.room_id = None
             if user.partner_id:
                 partner_result = await session.execute(
                     select(User).where(User.telegram_id == user.partner_id)
@@ -344,3 +370,98 @@ async def get_all_telegram_ids() -> list[int]:
             select(User.telegram_id).where(User.banned == False)
         )
         return list(result.scalars().all())
+
+
+async def get_room_by_name(name: str) -> ChatRoom | None:
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(ChatRoom).where(ChatRoom.name == name)
+        )
+        return result.scalar_one_or_none()
+
+
+async def get_room_members(room_id: int) -> list[int]:
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User.telegram_id).where(
+                User.room_id == room_id,
+                User.banned == False,
+            )
+        )
+        return list(result.scalars().all())
+
+
+async def join_room(user_id: int, room_id: int) -> tuple[bool, str]:
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.telegram_id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            return False, "no_user"
+
+        result = await session.execute(
+            select(ChatRoom).where(ChatRoom.id == room_id)
+        )
+        room = result.scalar_one_or_none()
+        if not room:
+            return False, "no_room"
+
+        if room.vip_only and not user.vip:
+            return False, "vip_required"
+
+        if user.partner_id:
+            return False, "in_private_chat"
+
+        user.room_id = room_id
+        user.is_searching = False
+        user.search_gender = None
+        await session.commit()
+        return True, "ok"
+
+
+async def leave_room(user_id: int) -> bool:
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.telegram_id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        if not user or not user.room_id:
+            return False
+
+        user.room_id = None
+        await session.commit()
+        return True
+
+
+async def purchase_vip_with_coins(telegram_id: int) -> tuple[bool, str]:
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            return False, "no_user"
+        if user.vip:
+            return False, "already_vip"
+        if user.coins < VIP_COIN_PRICE:
+            return False, "insufficient"
+
+        user.coins -= VIP_COIN_PRICE
+        user.vip = True
+        await session.commit()
+        return True, "ok"
+
+
+async def activate_vip(telegram_id: int) -> bool:
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            return False
+
+        user.vip = True
+        await session.commit()
+        return True

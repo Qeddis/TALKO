@@ -35,7 +35,8 @@ async def admin_panel(message: Message):
         "/unsetvip <id> — غیرفعال VIP\n"
         "/coins <id> <amount> — افزودن سکه\n"
         "/user <id> — اطلاعات کاربر\n"
-        "/broadcast <متن> — پیام همگانی"
+        "/broadcast <متن> — پیام همگانی\n"
+        "/deploy — راهنمای deploy"
     )
 
 

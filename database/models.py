@@ -37,6 +37,16 @@ class User(Base):
         nullable=True
     )
 
+    room_id: Mapped[int | None] = mapped_column(nullable=True)
+
+
+class ChatRoom(Base):
+    __tablename__ = "chat_rooms"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    vip_only: Mapped[bool] = mapped_column(default=False)
+
 
 class BlockedUser(Base):
     __tablename__ = "blocked_users"

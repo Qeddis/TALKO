@@ -11,11 +11,11 @@ from database.db import (
     add_report,
     block_user,
     end_chat,
+    get_user,
     get_waiting_user,
     has_reported,
     increment_reports,
     match_partners,
-    set_partner,
     start_searching,
 )
 from database.models import User
@@ -331,6 +331,15 @@ async def anonymous_chat(message: Message):
     partner_id = await get_partner(message)
 
     if not partner_id:
+        user = await get_user(message.from_user.id)
+        if user and user.is_searching:
+            await message.answer(
+                "🔎 در حال جستجو هستید. لطفاً صبر کنید یا «⏹ لغو جستجو» بزنید."
+            )
+        elif user and user.room_id:
+            await message.answer(
+                "👥 در اتاق گروهی هستید. پیام برای اعضای اتاق ارسال می‌شود."
+            )
         return
 
     try:

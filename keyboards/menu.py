@@ -7,6 +7,7 @@ main_menu = ReplyKeyboardMarkup(
             KeyboardButton(text="👦 چت با پسر"),
             KeyboardButton(text="👧 چت با دختر"),
         ],
+        [KeyboardButton(text="👥 چت گروهی")],
         [KeyboardButton(text="👤 پروفایل")],
         [
             KeyboardButton(text="⚙️ بیشتر"),
