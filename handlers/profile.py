@@ -2,8 +2,9 @@ from aiogram import Router, F
 from aiogram.types import Message
 from sqlalchemy import select
 
-from database.db import SessionLocal
+from database.db import SessionLocal, get_user
 from database.models import User
+from handlers.profile_utils import format_user_profile
 from keyboards.edit_profile_menu import edit_profile_menu
 from keyboards.profile_menu import profile_menu
 
@@ -32,28 +33,13 @@ async def open_profile_menu(message: Message):
 
 @router.message(F.text == "📄 مشاهده پروفایل")
 async def profile(message: Message):
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == message.from_user.id)
-        )
+    user = await get_user(message.from_user.id)
 
-        user = result.scalar_one_or_none()
+    if not user:
+        await message.answer("❌ پروفایل پیدا نشد.")
+        return
 
-        if not user:
-            await message.answer("❌ پروفایل پیدا نشد.")
-            return
-
-        vip_badge = " 💎" if user.vip else ""
-        text = (
-            f"👤 پروفایل شما{vip_badge}\n\n"
-            f"🎂 سن: {user.age or 'ثبت نشده'}\n"
-            f"🚻 جنسیت: {user.gender or 'ثبت نشده'}\n"
-            f"🌍 کشور: {user.country or 'ثبت نشده'}\n"
-            f"📝 بیو:\n{user.bio or 'ثبت نشده'}\n"
-            f"🪙 سکه: {user.coins}"
-        )
-
-        await message.answer(text)
+    await message.answer(format_user_profile(user, show_coins=True))
 
 
 @router.message(F.text == "✏️ ویرایش پروفایل")
