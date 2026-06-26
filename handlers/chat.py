@@ -15,7 +15,6 @@ from database.db import (
     has_reported,
     increment_reports,
     match_partners,
-    set_partner,
     start_searching,
 )
 from database.models import User
