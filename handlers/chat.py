@@ -1,30 +1,24 @@
 import logging
 
-from aiogram import Router, F
+from aiogram import Bot, Router, F
 from aiogram.types import Message
-from sqlalchemy import select
 
 from config import REPORTS_FOR_BAN
 from constants import MENU_BUTTONS
 from database.db import (
-    SessionLocal,
     add_report,
     block_user,
     end_chat,
-    get_waiting_user,
+    get_user,
     has_reported,
     increment_reports,
-    match_partners,
-    set_partner,
-    start_searching,
 )
-from database.models import User
 from handlers.chat_helpers import (
     notify_admins,
     notify_chat_ended,
-    notify_chat_match,
-    notify_searching,
 )
+from handlers.profile_utils import format_user_profile
+from handlers.search_utils import try_match_or_search
 from keyboards.menu import main_menu
 from services.anti_spam import is_spam
 
@@ -34,16 +28,34 @@ router = Router()
 
 
 async def get_partner(message: Message) -> int | None:
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == message.from_user.id)
-        )
-        user = result.scalar_one_or_none()
+    user = await get_user(message.from_user.id)
+    if not user or not user.partner_id:
+        return None
+    return user.partner_id
 
-        if not user or not user.partner_id:
-            return None
 
-        return user.partner_id
+async def _require_chat_partner(message: Message) -> int | None:
+    """Return the partner's telegram_id, or send an error and return None."""
+    user = await get_user(message.from_user.id)
+    if not user or not user.partner_id:
+        await message.answer("❌ شما داخل چتی نیستید.")
+        return None
+    return user.partner_id
+
+
+async def _disconnect_and_notify(
+    bot: Bot,
+    user_id: int,
+    partner_id: int,
+    partner_text: str = "❌ طرف مقابل چت را پایان داد.",
+) -> None:
+    """End chat for both sides and notify the partner."""
+    await end_chat(user_id)
+    await end_chat(partner_id)
+    try:
+        await bot.send_message(partner_id, partner_text, reply_markup=main_menu)
+    except Exception as e:
+        logger.warning("Failed to notify partner %s: %s", partner_id, e)
 
 
 async def _forward(message: Message, send) -> None:
@@ -63,155 +75,63 @@ async def _forward(message: Message, send) -> None:
 
 @router.message(F.text == "❌ پایان چت")
 async def stop_chat(message: Message):
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == message.from_user.id)
-        )
-        user = result.scalar_one_or_none()
+    partner_id = await _require_chat_partner(message)
+    if not partner_id:
+        return
 
-        if not user or not user.partner_id:
-            await message.answer("❌ شما داخل چتی نیستید.")
-            return
-
-        partner_id = user.partner_id
-
-        await end_chat(user.telegram_id)
-        await end_chat(partner_id)
-
-        await notify_chat_ended(message)
-
-        try:
-            await message.bot.send_message(
-                partner_id,
-                "❌ طرف مقابل چت را پایان داد.",
-                reply_markup=main_menu,
-            )
-        except Exception as e:
-            logger.warning("Failed to notify partner %s: %s", partner_id, e)
+    await _disconnect_and_notify(message.bot, message.from_user.id, partner_id)
+    await notify_chat_ended(message)
 
 
 @router.message(F.text == "🔄 مخاطب جدید")
 async def new_partner(message: Message):
     user_id = message.from_user.id
+    user = await get_user(user_id)
 
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == user_id)
+    if user and user.partner_id:
+        await _disconnect_and_notify(
+            message.bot, user_id, user.partner_id,
+            "❌ طرف مقابل چت را ترک کرد.",
         )
-        user = result.scalar_one_or_none()
 
-        if user and user.partner_id:
-            partner_id = user.partner_id
-
-            await end_chat(user_id)
-            await end_chat(partner_id)
-
-            try:
-                await message.bot.send_message(
-                    partner_id,
-                    "❌ طرف مقابل چت را ترک کرد.",
-                    reply_markup=main_menu,
-                )
-            except Exception as e:
-                logger.warning("Failed to notify partner %s: %s", partner_id, e)
-
-    waiting_user = await get_waiting_user(user_id)
-
-    if waiting_user:
-        matched = await match_partners(user_id, waiting_user.telegram_id)
-        if matched:
-            await notify_chat_match(message.bot, user_id, waiting_user.telegram_id)
-            return
-
-    await start_searching(user_id, None)
-    await notify_searching(message, "🔎 در حال جستجوی مخاطب جدید...")
+    await try_match_or_search(message)
 
 
 @router.message(F.text == "👤 مشاهده مشخصات مخاطب")
 async def show_partner_profile(message: Message):
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == message.from_user.id)
-        )
-        user = result.scalar_one_or_none()
+    partner_id = await _require_chat_partner(message)
+    if not partner_id:
+        return
 
-        if not user or not user.partner_id:
-            await message.answer("❌ شما داخل چتی نیستید.")
-            return
+    partner = await get_user(partner_id)
+    if not partner:
+        await message.answer("❌ اطلاعات مخاطب پیدا نشد.")
+        return
 
-        result = await session.execute(
-            select(User).where(User.telegram_id == user.partner_id)
-        )
-        partner = result.scalar_one_or_none()
-
-        if not partner:
-            await message.answer("❌ اطلاعات مخاطب پیدا نشد.")
-            return
-
-        vip = " 💎" if partner.vip else ""
-        text = (
-            f"👤 مشخصات مخاطب{vip}\n\n"
-            f"🎂 سن: {partner.age or 'ثبت نشده'}\n"
-            f"🚻 جنسیت: {partner.gender or 'ثبت نشده'}\n"
-            f"🌍 کشور: {partner.country or 'ثبت نشده'}\n"
-            f"📝 بیو:\n{partner.bio or 'ثبت نشده'}"
-        )
-
-        await message.answer(text)
+    await message.answer(format_user_profile(partner, title="👤 مشخصات مخاطب"))
 
 
 @router.message(F.text == "🚫 بلاک کاربر")
 async def block_partner(message: Message):
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == message.from_user.id)
-        )
-        user = result.scalar_one_or_none()
+    partner_id = await _require_chat_partner(message)
+    if not partner_id:
+        return
 
-        if not user or not user.partner_id:
-            await message.answer("❌ شما داخل چتی نیستید.")
-            return
-
-        partner_id = user.partner_id
-
-        await block_user(user.telegram_id, partner_id)
-        await end_chat(user.telegram_id)
-        await end_chat(partner_id)
-
-        await notify_chat_ended(message, "🚫 کاربر بلاک شد و چت پایان یافت.")
-
-        try:
-            await message.bot.send_message(
-                partner_id,
-                "❌ طرف مقابل چت را پایان داد.",
-                reply_markup=main_menu,
-            )
-        except Exception as e:
-            logger.warning("Failed to notify partner %s: %s", partner_id, e)
+    await block_user(message.from_user.id, partner_id)
+    await _disconnect_and_notify(message.bot, message.from_user.id, partner_id)
+    await notify_chat_ended(message, "🚫 کاربر بلاک شد و چت پایان یافت.")
 
 
 @router.message(F.text == "📢 گزارش کاربر")
 async def report_user(message: Message):
-    async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == message.from_user.id)
-        )
-        user = result.scalar_one_or_none()
+    partner_id = await _require_chat_partner(message)
+    if not partner_id:
+        return
 
-        if not user or not user.partner_id:
-            await message.answer("❌ شما داخل چتی نیستید.")
-            return
-
-        partner_id = user.partner_id
-
-        result = await session.execute(
-            select(User).where(User.telegram_id == partner_id)
-        )
-        partner = result.scalar_one_or_none()
-
-        if not partner:
-            await message.answer("❌ کاربر پیدا نشد.")
-            return
+    partner = await get_user(partner_id)
+    if not partner:
+        await message.answer("❌ کاربر پیدا نشد.")
+        return
 
     if await has_reported(message.from_user.id, partner_id):
         await message.answer("⚠️ شما قبلاً این کاربر را گزارش کرده‌اید.")

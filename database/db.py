@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from config import REPORTS_FOR_BAN
 from database.models import Base, BlockedUser, Report, User
@@ -18,20 +18,23 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
 
 
+async def _fetch_user(
+    session: AsyncSession, telegram_id: int
+) -> User | None:
+    result = await session.execute(
+        select(User).where(User.telegram_id == telegram_id)
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_user(telegram_id: int) -> User | None:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        return result.scalar_one_or_none()
+        return await _fetch_user(session, telegram_id)
 
 
 async def add_user(telegram_id: int, username: str | None) -> User:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        user = result.scalar_one_or_none()
+        user = await _fetch_user(session, telegram_id)
 
         if user:
             if username and user.username != username:
@@ -166,10 +169,7 @@ async def match_partners(user_id: int, partner_id: int) -> bool:
 
 async def set_partner(user_id: int, partner_id: int) -> None:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == user_id)
-        )
-        user = result.scalar_one_or_none()
+        user = await _fetch_user(session, user_id)
 
         if user:
             user.partner_id = partner_id
@@ -180,10 +180,7 @@ async def set_partner(user_id: int, partner_id: int) -> None:
 
 async def end_chat(user_id: int) -> None:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == user_id)
-        )
-        user = result.scalar_one_or_none()
+        user = await _fetch_user(session, user_id)
 
         if user:
             user.partner_id = None
@@ -194,10 +191,7 @@ async def end_chat(user_id: int) -> None:
 
 async def start_searching(user_id: int, search_gender: str | None = None) -> None:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == user_id)
-        )
-        user = result.scalar_one_or_none()
+        user = await _fetch_user(session, user_id)
 
         if user:
             user.is_searching = True
@@ -208,10 +202,7 @@ async def start_searching(user_id: int, search_gender: str | None = None) -> Non
 
 async def cancel_search(user_id: int) -> bool:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == user_id)
-        )
-        user = result.scalar_one_or_none()
+        user = await _fetch_user(session, user_id)
 
         if not user or not user.is_searching or user.partner_id:
             return False
@@ -252,10 +243,7 @@ async def get_stats() -> dict[str, int]:
 
 async def set_banned(telegram_id: int, banned: bool) -> bool:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        user = result.scalar_one_or_none()
+        user = await _fetch_user(session, telegram_id)
         if not user:
             return False
 
@@ -269,10 +257,7 @@ async def set_banned(telegram_id: int, banned: bool) -> bool:
 
 async def set_vip(telegram_id: int, vip: bool = True) -> bool:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        user = result.scalar_one_or_none()
+        user = await _fetch_user(session, telegram_id)
         if not user:
             return False
 
@@ -283,10 +268,7 @@ async def set_vip(telegram_id: int, vip: bool = True) -> bool:
 
 async def add_coins(telegram_id: int, amount: int) -> bool:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        user = result.scalar_one_or_none()
+        user = await _fetch_user(session, telegram_id)
         if not user:
             return False
 
@@ -314,10 +296,7 @@ async def add_report(reporter_id: int, reported_id: int) -> None:
 
 async def increment_reports(telegram_id: int) -> int:
     async with SessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        user = result.scalar_one_or_none()
+        user = await _fetch_user(session, telegram_id)
         if not user:
             return 0
 
@@ -326,10 +305,7 @@ async def increment_reports(telegram_id: int) -> int:
             user.banned = True
             user.is_searching = False
             if user.partner_id:
-                partner_result = await session.execute(
-                    select(User).where(User.telegram_id == user.partner_id)
-                )
-                partner = partner_result.scalar_one_or_none()
+                partner = await _fetch_user(session, user.partner_id)
                 if partner:
                     partner.partner_id = None
             user.partner_id = None

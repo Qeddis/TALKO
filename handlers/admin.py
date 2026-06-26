@@ -1,8 +1,9 @@
 import asyncio
+from typing import Any, Awaitable, Callable
 
-from aiogram import Router
+from aiogram import BaseMiddleware, Router
 from aiogram.filters import Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import Message, TelegramObject
 
 from config import ADMIN_IDS
 from database.db import (
@@ -17,15 +18,31 @@ from database.db import (
 router = Router()
 
 
-def _is_admin(user_id: int) -> bool:
-    return user_id in ADMIN_IDS
+class _AdminOnly(BaseMiddleware):
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        if isinstance(event, Message) and event.from_user:
+            if event.from_user.id not in ADMIN_IDS:
+                return None
+        return await handler(event, data)
+
+
+router.message.middleware(_AdminOnly())
+
+
+def _parse_target_id(command: CommandObject) -> int | None:
+    """Extract a numeric telegram_id from command args, or None."""
+    if command.args and command.args.strip().isdigit():
+        return int(command.args.strip())
+    return None
 
 
 @router.message(Command("admin"))
 async def admin_panel(message: Message):
-    if not _is_admin(message.from_user.id):
-        return
-
     await message.answer(
         "🛠 پنل ادمین\n\n"
         "/stats — آمار ربات\n"
@@ -41,9 +58,6 @@ async def admin_panel(message: Message):
 
 @router.message(Command("stats"))
 async def admin_stats(message: Message):
-    if not _is_admin(message.from_user.id):
-        return
-
     stats = await get_stats()
     await message.answer(
         "📊 آمار TALKO\n\n"
@@ -57,14 +71,11 @@ async def admin_stats(message: Message):
 
 @router.message(Command("ban"))
 async def admin_ban(message: Message, command: CommandObject):
-    if not _is_admin(message.from_user.id):
-        return
-
-    if not command.args or not command.args.strip().isdigit():
+    target_id = _parse_target_id(command)
+    if target_id is None:
         await message.answer("❌ فرمت: /ban <telegram_id>")
         return
 
-    target_id = int(command.args.strip())
     if await set_banned(target_id, True):
         await message.answer(f"✅ کاربر {target_id} مسدود شد.")
     else:
@@ -73,14 +84,11 @@ async def admin_ban(message: Message, command: CommandObject):
 
 @router.message(Command("unban"))
 async def admin_unban(message: Message, command: CommandObject):
-    if not _is_admin(message.from_user.id):
-        return
-
-    if not command.args or not command.args.strip().isdigit():
+    target_id = _parse_target_id(command)
+    if target_id is None:
         await message.answer("❌ فرمت: /unban <telegram_id>")
         return
 
-    target_id = int(command.args.strip())
     if await set_banned(target_id, False):
         await message.answer(f"✅ مسدودی کاربر {target_id} برداشته شد.")
     else:
@@ -89,14 +97,11 @@ async def admin_unban(message: Message, command: CommandObject):
 
 @router.message(Command("setvip"))
 async def admin_setvip(message: Message, command: CommandObject):
-    if not _is_admin(message.from_user.id):
-        return
-
-    if not command.args or not command.args.strip().isdigit():
+    target_id = _parse_target_id(command)
+    if target_id is None:
         await message.answer("❌ فرمت: /setvip <telegram_id>")
         return
 
-    target_id = int(command.args.strip())
     if await set_vip(target_id, True):
         await message.answer(f"💎 VIP برای {target_id} فعال شد.")
     else:
@@ -105,14 +110,11 @@ async def admin_setvip(message: Message, command: CommandObject):
 
 @router.message(Command("unsetvip"))
 async def admin_unsetvip(message: Message, command: CommandObject):
-    if not _is_admin(message.from_user.id):
-        return
-
-    if not command.args or not command.args.strip().isdigit():
+    target_id = _parse_target_id(command)
+    if target_id is None:
         await message.answer("❌ فرمت: /unsetvip <telegram_id>")
         return
 
-    target_id = int(command.args.strip())
     if await set_vip(target_id, False):
         await message.answer(f"✅ VIP کاربر {target_id} غیرفعال شد.")
     else:
@@ -121,9 +123,6 @@ async def admin_unsetvip(message: Message, command: CommandObject):
 
 @router.message(Command("coins"))
 async def admin_coins(message: Message, command: CommandObject):
-    if not _is_admin(message.from_user.id):
-        return
-
     parts = (command.args or "").split()
     if len(parts) != 2 or not parts[0].isdigit() or not parts[1].lstrip("-").isdigit():
         await message.answer("❌ فرمت: /coins <telegram_id> <amount>")
@@ -143,14 +142,10 @@ async def admin_coins(message: Message, command: CommandObject):
 
 @router.message(Command("user"))
 async def admin_user(message: Message, command: CommandObject):
-    if not _is_admin(message.from_user.id):
-        return
-
-    if not command.args or not command.args.strip().isdigit():
+    target_id = _parse_target_id(command)
+    if target_id is None:
         await message.answer("❌ فرمت: /user <telegram_id>")
         return
-
-    target_id = int(command.args.strip())
     user = await get_user(target_id)
     if not user:
         await message.answer("❌ کاربر پیدا نشد.")
@@ -173,9 +168,6 @@ async def admin_user(message: Message, command: CommandObject):
 
 @router.message(Command("broadcast"))
 async def admin_broadcast(message: Message, command: CommandObject):
-    if not _is_admin(message.from_user.id):
-        return
-
     text = (command.args or "").strip()
     if not text:
         await message.answer("❌ فرمت: /broadcast <متن پیام>")
