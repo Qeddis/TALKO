@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from config import REPORTS_FOR_BAN
-from database.models import Base, BlockedUser, User
+from database.models import Base, BlockedUser, Report, User
 
 BASE_DIR = Path(__file__).resolve().parent
 DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR}/bot.db"
@@ -132,6 +132,36 @@ async def get_waiting_user_by_gender(
 
     searcher.search_gender = target_gender
     return await _find_waiting_user(searcher)
+
+
+async def match_partners(user_id: int, partner_id: int) -> bool:
+    """Atomically set two users as partners. Returns False if either is unavailable."""
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.telegram_id == user_id)
+        )
+        user = result.scalar_one_or_none()
+
+        result = await session.execute(
+            select(User).where(User.telegram_id == partner_id)
+        )
+        partner = result.scalar_one_or_none()
+
+        if not user or not partner:
+            return False
+        if partner.partner_id or not partner.is_searching:
+            return False
+
+        user.partner_id = partner_id
+        user.is_searching = False
+        user.search_gender = None
+
+        partner.partner_id = user_id
+        partner.is_searching = False
+        partner.search_gender = None
+
+        await session.commit()
+        return True
 
 
 async def set_partner(user_id: int, partner_id: int) -> None:
@@ -263,6 +293,23 @@ async def add_coins(telegram_id: int, amount: int) -> bool:
         user.coins = max(0, user.coins + amount)
         await session.commit()
         return True
+
+
+async def has_reported(reporter_id: int, reported_id: int) -> bool:
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(Report).where(
+                Report.reporter_id == reporter_id,
+                Report.reported_id == reported_id,
+            )
+        )
+        return result.scalar_one_or_none() is not None
+
+
+async def add_report(reporter_id: int, reported_id: int) -> None:
+    async with SessionLocal() as session:
+        session.add(Report(reporter_id=reporter_id, reported_id=reported_id))
+        await session.commit()
 
 
 async def increment_reports(telegram_id: int) -> int:

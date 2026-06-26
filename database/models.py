@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Boolean
+from sqlalchemy import BigInteger, Boolean, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -11,7 +11,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    telegram_id: Mapped[int] = mapped_column(unique=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True)
 
     username: Mapped[str | None]
     age: Mapped[int | None]
@@ -40,7 +40,17 @@ class User(Base):
 
 class BlockedUser(Base):
     __tablename__ = "blocked_users"
+    __table_args__ = (UniqueConstraint("user_id", "blocked_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(BigInteger)
     blocked_id: Mapped[int] = mapped_column(BigInteger)
+
+
+class Report(Base):
+    __tablename__ = "reports"
+    __table_args__ = (UniqueConstraint("reporter_id", "reported_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    reporter_id: Mapped[int] = mapped_column(BigInteger)
+    reported_id: Mapped[int] = mapped_column(BigInteger)

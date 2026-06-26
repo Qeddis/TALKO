@@ -5,7 +5,7 @@ from database.db import (
     cancel_search,
     get_user,
     get_waiting_user,
-    set_partner,
+    match_partners,
     start_searching,
 )
 from handlers.chat_helpers import notify_chat_match, notify_searching
@@ -34,10 +34,10 @@ async def _begin_random_search(message: Message) -> None:
     waiting_user = await get_waiting_user(user_id)
 
     if waiting_user:
-        await set_partner(user_id, waiting_user.telegram_id)
-        await set_partner(waiting_user.telegram_id, user_id)
-        await notify_chat_match(message.bot, user_id, waiting_user.telegram_id)
-        return
+        matched = await match_partners(user_id, waiting_user.telegram_id)
+        if matched:
+            await notify_chat_match(message.bot, user_id, waiting_user.telegram_id)
+            return
 
     await notify_searching(message, "🔎 در حال جستجوی مخاطب...")
 

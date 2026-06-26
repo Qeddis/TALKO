@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Router, F
 from aiogram.types import Message
 from sqlalchemy import select
@@ -6,10 +8,13 @@ from config import REPORTS_FOR_BAN
 from constants import MENU_BUTTONS
 from database.db import (
     SessionLocal,
+    add_report,
     block_user,
     end_chat,
     get_waiting_user,
+    has_reported,
     increment_reports,
+    match_partners,
     set_partner,
     start_searching,
 )
@@ -22,6 +27,8 @@ from handlers.chat_helpers import (
 )
 from keyboards.menu import main_menu
 from services.anti_spam import is_spam
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -79,8 +86,8 @@ async def stop_chat(message: Message):
                 "❌ طرف مقابل چت را پایان داد.",
                 reply_markup=main_menu,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to notify partner %s: %s", partner_id, e)
 
 
 @router.message(F.text == "🔄 مخاطب جدید")
@@ -105,16 +112,16 @@ async def new_partner(message: Message):
                     "❌ طرف مقابل چت را ترک کرد.",
                     reply_markup=main_menu,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to notify partner %s: %s", partner_id, e)
 
     waiting_user = await get_waiting_user(user_id)
 
     if waiting_user:
-        await set_partner(user_id, waiting_user.telegram_id)
-        await set_partner(waiting_user.telegram_id, user_id)
-        await notify_chat_match(message.bot, user_id, waiting_user.telegram_id)
-        return
+        matched = await match_partners(user_id, waiting_user.telegram_id)
+        if matched:
+            await notify_chat_match(message.bot, user_id, waiting_user.telegram_id)
+            return
 
     await start_searching(user_id, None)
     await notify_searching(message, "🔎 در حال جستجوی مخاطب جدید...")
@@ -179,8 +186,8 @@ async def block_partner(message: Message):
                 "❌ طرف مقابل چت را پایان داد.",
                 reply_markup=main_menu,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to notify partner %s: %s", partner_id, e)
 
 
 @router.message(F.text == "📢 گزارش کاربر")
@@ -206,6 +213,11 @@ async def report_user(message: Message):
             await message.answer("❌ کاربر پیدا نشد.")
             return
 
+    if await has_reported(message.from_user.id, partner_id):
+        await message.answer("⚠️ شما قبلاً این کاربر را گزارش کرده‌اید.")
+        return
+
+    await add_report(message.from_user.id, partner_id)
     reports = await increment_reports(partner_id)
 
     await message.answer("✅ گزارش شما ثبت شد.")
