@@ -97,6 +97,11 @@ async def save_profile(message: Message):
         user = result.scalar_one_or_none()
 
         if not user:
+            waiting_age.discard(user_id)
+            waiting_gender.discard(user_id)
+            waiting_country.discard(user_id)
+            waiting_bio.discard(user_id)
+            await message.answer("❌ پروفایل پیدا نشد. لطفاً /start بزنید.")
             return
 
         if user_id in waiting_age:

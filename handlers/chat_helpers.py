@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Bot
 from aiogram.types import Message
 
@@ -6,6 +8,8 @@ from keyboards.menu import main_menu
 from keyboards.more_menu import more_menu
 from keyboards.search_menu import search_menu
 
+logger = logging.getLogger(__name__)
+
 
 async def notify_chat_match(
     bot: Bot,
@@ -13,8 +17,11 @@ async def notify_chat_match(
     user_b: int,
     text: str = "✅ مخاطب پیدا شد. چت را شروع کنید.",
 ) -> None:
-    await bot.send_message(user_a, text, reply_markup=more_menu)
-    await bot.send_message(user_b, text, reply_markup=more_menu)
+    for uid in (user_a, user_b):
+        try:
+            await bot.send_message(uid, text, reply_markup=more_menu)
+        except Exception:
+            logger.exception("Failed to notify user %s about chat match", uid)
 
 
 async def notify_chat_ended(message: Message, text: str = "❌ چت پایان یافت.") -> None:
@@ -30,4 +37,4 @@ async def notify_admins(bot: Bot, text: str) -> None:
         try:
             await bot.send_message(admin_id, text)
         except Exception:
-            pass
+            logger.exception("Failed to notify admin %s", admin_id)

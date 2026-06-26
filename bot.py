@@ -24,13 +24,16 @@ logger = logging.getLogger(__name__)
 
 
 async def setup_bot_commands(bot: Bot) -> None:
-    await bot.set_my_commands(
-        [
-            BotCommand(command="start", description="شروع ربات"),
-            BotCommand(command="help", description="راهنما"),
-            BotCommand(command="rules", description="قوانین"),
-        ]
-    )
+    try:
+        await bot.set_my_commands(
+            [
+                BotCommand(command="start", description="شروع ربات"),
+                BotCommand(command="help", description="راهنما"),
+                BotCommand(command="rules", description="قوانین"),
+            ]
+        )
+    except Exception:
+        logger.exception("Failed to set bot commands")
 
 
 async def main():

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from aiogram import Router
 from aiogram.filters import Command, CommandObject
@@ -13,6 +14,8 @@ from database.db import (
     set_banned,
     set_vip,
 )
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -192,6 +195,7 @@ async def admin_broadcast(message: Message, command: CommandObject):
             await message.bot.send_message(user_id, f"📢 پیام مدیریت:\n\n{text}")
             sent += 1
         except Exception:
+            logger.warning("Broadcast failed for user %s", user_id, exc_info=True)
             failed += 1
         await asyncio.sleep(0.05)
 

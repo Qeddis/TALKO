@@ -58,6 +58,7 @@ async def _forward(message: Message, send) -> None:
     try:
         await send(partner_id)
     except Exception:
+        logger.exception("Failed to forward message to partner %s", partner_id)
         await message.answer("❌ ارسال پیام ناموفق بود.")
 
 
@@ -336,4 +337,5 @@ async def anonymous_chat(message: Message):
     try:
         await message.bot.send_message(partner_id, message.text)
     except Exception:
+        logger.exception("Failed to send text message to partner %s", partner_id)
         await message.answer("❌ ارسال پیام ناموفق بود.")
