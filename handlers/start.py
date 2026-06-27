@@ -6,7 +6,7 @@ from aiogram.types import Message
 
 from config import REFERRAL_BONUS, REFERRAL_REWARD
 from database.db import add_user
-from handlers.referral import _parse_referrer_id
+from utils.referral import parse_referrer_id
 from keyboards.menu import main_menu
 
 router = Router()
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @router.message(CommandStart())
 async def start(message: Message, command: CommandObject):
-    referrer_id = _parse_referrer_id(command.args)
+    referrer_id = parse_referrer_id(command.args)
     result = await add_user(
         telegram_id=message.from_user.id,
         username=message.from_user.username,

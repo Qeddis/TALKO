@@ -15,8 +15,7 @@ HELP_TEXT = (
     "👤 پروفایل — مشاهده و ویرایش اطلاعات\n"
     "💎 VIP — خرید با سکه یا استار تلگرام\n"
     "🎁 دعوت دوستان — سکه رایگان با لینک دعوت\n"
-    "⚙️ بیشتر — کنترل چت (پایان، بلاک، گزارش، ...)\n\n"
-    "در حین چت خصوصی:\n"
+    "در حین چت خصوصی (منوی کنترل خودکار):\n"
     "• متن، عکس، ویس، ویدیو، استیکر و فایل\n"
     "• ❌ پایان چت | 🔄 مخاطب جدید\n"
     "• 🚫 بلاک | 📢 گزارش\n\n"
@@ -43,8 +42,10 @@ DEPLOY_TEXT = (
     "متغیرهای مهم:\n"
     "• BOT_TOKEN — توکن @BotFather\n"
     "• ADMIN_IDS — آیدی عددی ادمین\n"
-    "• VIP_COIN_PRICE — قیمت VIP با سکه\n"
-    "• VIP_STARS_PRICE — قیمت VIP با استار (0 = غیرفعال)"
+    "• DATABASE_URL — PostgreSQL (اختیاری)\n"
+    "• VIP_COIN_PRICE / VIP_STARS_PRICE\n"
+    "• REFERRAL_REWARD / REFERRAL_BONUS\n\n"
+    "⭐ Stars: نیازی به تنظیم BotFather نیست — currency=XTR"
 )
 
 

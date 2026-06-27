@@ -1,16 +1,18 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 more_menu = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="🔄 مخاطب جدید")],
-        [KeyboardButton(text="❌ پایان چت")],
+        [
+            KeyboardButton(text="🔄 مخاطب جدید"),
+            KeyboardButton(text="❌ پایان چت"),
+        ],
         [KeyboardButton(text="👤 مشاهده مشخصات مخاطب")],
         [
             KeyboardButton(text="🚫 بلاک کاربر"),
-            KeyboardButton(text="📢 گزارش کاربر")
+            KeyboardButton(text="📢 گزارش کاربر"),
         ],
         [KeyboardButton(text="💎 VIP")],
-        [KeyboardButton(text="⬅️ بازگشت")]
+        [KeyboardButton(text="⬅️ بازگشت")],
     ],
-    resize_keyboard=True
+    resize_keyboard=True,
 )

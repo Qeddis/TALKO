@@ -1,12 +1,14 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 edit_profile_menu = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="🎂 ثبت سن")],
-        [KeyboardButton(text="🚻 ثبت جنسیت")],
+        [
+            KeyboardButton(text="🎂 ثبت سن"),
+            KeyboardButton(text="🚻 ثبت جنسیت"),
+        ],
         [KeyboardButton(text="🌍 ثبت کشور")],
         [KeyboardButton(text="📝 ثبت بیو")],
-        [KeyboardButton(text="⬅️ بازگشت")]
+        [KeyboardButton(text="⬅️ بازگشت")],
     ],
-    resize_keyboard=True
+    resize_keyboard=True,
 )

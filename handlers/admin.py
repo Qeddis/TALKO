@@ -8,6 +8,7 @@ from config import ADMIN_IDS
 from database.db import (
     add_coins,
     get_all_telegram_ids,
+    get_referral_count,
     get_stats,
     get_user,
     set_banned,
@@ -158,6 +159,7 @@ async def admin_user(message: Message, command: CommandObject):
         await message.answer("❌ کاربر پیدا نشد.")
         return
 
+    ref_count = await get_referral_count(target_id)
     await message.answer(
         f"👤 کاربر {target_id}\n\n"
         f"username: @{user.username or '-'}\n"
@@ -168,6 +170,8 @@ async def admin_user(message: Message, command: CommandObject):
         f"💎 VIP: {'بله' if user.vip else 'خیر'}\n"
         f"🚫 ban: {'بله' if user.banned else 'خیر'}\n"
         f"📢 گزارش‌ها: {user.reports}\n"
+        f"🎁 دعوت‌شده توسط: {user.referred_by or '-'}\n"
+        f"🎁 دعوت‌های موفق: {ref_count}\n"
         f"🔎 در جستجو: {'بله' if user.is_searching else 'خیر'}\n"
         f"💬 partner: {user.partner_id or '-'}"
     )

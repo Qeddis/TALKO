@@ -81,7 +81,7 @@ async def buy_vip_coins(message: Message):
         await message.answer(
             f"❌ سکه کافی ندارید.\n"
             f"نیاز: {VIP_COIN_PRICE} | موجودی: {user.coins}\n\n"
-            "از ادمین یا پشتیبانی سکه دریافت کنید.",
+            "از ادمین، دعوت دوستان یا پشتیبانی سکه دریافت کنید.",
             reply_markup=vip_menu,
         )
         return
@@ -135,9 +135,16 @@ async def successful_payment(message: Message):
     if user_id != message.from_user.id:
         return
 
-    if await activate_vip(user_id):
+    ok, reason = await activate_vip(user_id)
+    if ok:
         await message.answer(
             "✅ VIP با موفقیت فعال شد!\n\n"
             f"مزایا:\n{_vip_benefits()}",
+            reply_markup=main_menu,
+        )
+        return
+    if reason == "already_vip":
+        await message.answer(
+            "💎 شما از قبل VIP هستید.",
             reply_markup=main_menu,
         )

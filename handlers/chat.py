@@ -338,7 +338,7 @@ async def anonymous_chat(message: Message):
             )
         elif user and user.room_id:
             await message.answer(
-                "👥 در اتاق گروهی هستید. پیام برای اعضای اتاق ارسال می‌شود."
+                "👥 در اتاق گروهی هستید — پیامتان برای اعضا ارسال می‌شود."
             )
         return
 

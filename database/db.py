@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from pathlib import Path
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -14,9 +13,11 @@ from config import (
 )
 from database.models import Base, BlockedUser, ChatRoom, Report, User
 
-BASE_DIR = Path(__file__).resolve().parent
+_engine_kwargs: dict = {"echo": False}
+if DATABASE_URL.startswith("postgresql"):
+    _engine_kwargs["pool_pre_ping"] = True
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+engine = create_async_engine(DATABASE_URL, **_engine_kwargs)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
@@ -158,12 +159,18 @@ async def block_user(user_id: int, blocked_id: int) -> None:
         await session.commit()
 
 
-def _gender_compatible(searcher: User, candidate: User) -> bool:
+def _gender_compatible(
+    searcher: User,
+    candidate: User,
+    search_gender: str | None = None,
+) -> bool:
     if candidate.banned:
         return False
 
-    if searcher.search_gender:
-        if candidate.gender != searcher.search_gender:
+    target = search_gender if search_gender is not None else searcher.search_gender
+
+    if target:
+        if candidate.gender != target:
             return False
     if candidate.search_gender:
         if not searcher.gender or searcher.gender != candidate.search_gender:
@@ -176,7 +183,10 @@ def _sort_candidates(candidates: list[User]) -> list[User]:
     return sorted(candidates, key=lambda c: not c.vip)
 
 
-async def _find_waiting_user(searcher: User) -> User | None:
+async def _find_waiting_user(
+    searcher: User,
+    search_gender: str | None = None,
+) -> User | None:
     async with SessionLocal() as session:
         result = await session.execute(
             select(User).where(
@@ -193,7 +203,7 @@ async def _find_waiting_user(searcher: User) -> User | None:
     for candidate in candidates:
         if await is_blocked(searcher.telegram_id, candidate.telegram_id):
             continue
-        if _gender_compatible(searcher, candidate):
+        if _gender_compatible(searcher, candidate, search_gender):
             compatible.append(candidate)
 
     for candidate in _sort_candidates(compatible):
@@ -216,9 +226,7 @@ async def get_waiting_user_by_gender(
     searcher = await get_user(my_id)
     if not searcher:
         return None
-
-    searcher.search_gender = target_gender
-    return await _find_waiting_user(searcher)
+    return await _find_waiting_user(searcher, target_gender)
 
 
 async def match_partners(user_id: int, partner_id: int) -> bool:
@@ -527,18 +535,20 @@ async def purchase_vip_with_coins(telegram_id: int) -> tuple[bool, str]:
         return True, "ok"
 
 
-async def activate_vip(telegram_id: int) -> bool:
+async def activate_vip(telegram_id: int) -> tuple[bool, str]:
     async with SessionLocal() as session:
         result = await session.execute(
             select(User).where(User.telegram_id == telegram_id)
         )
         user = result.scalar_one_or_none()
         if not user:
-            return False
+            return False, "no_user"
+        if user.vip:
+            return False, "already_vip"
 
         user.vip = True
         await session.commit()
-        return True
+        return True, "ok"
 
 
 async def get_referral_count(telegram_id: int) -> int:

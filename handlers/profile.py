@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import Message
 from sqlalchemy import select
 
-from database.db import SessionLocal
+from database.db import SessionLocal, get_referral_count
 from database.models import User
 from keyboards.edit_profile_menu import edit_profile_menu
 from keyboards.profile_menu import profile_menu
@@ -54,13 +54,15 @@ async def profile(message: Message):
             return
 
         vip_badge = " 💎" if user.vip else ""
+        ref_count = await get_referral_count(message.from_user.id)
         text = (
             f"👤 پروفایل شما{vip_badge}\n\n"
             f"🎂 سن: {user.age or 'ثبت نشده'}\n"
             f"🚻 جنسیت: {user.gender or 'ثبت نشده'}\n"
             f"🌍 کشور: {user.country or 'ثبت نشده'}\n"
             f"📝 بیو:\n{user.bio or 'ثبت نشده'}\n"
-            f"🪙 سکه: {user.coins}"
+            f"🪙 سکه: {user.coins}\n"
+            f"🎁 دعوت‌های موفق: {ref_count}"
         )
 
         await message.answer(text)

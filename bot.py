@@ -4,7 +4,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, DATABASE_URL
 from database.db import init_db
 from handlers.admin import router as admin_router
 from handlers.chat import router as chat_router
@@ -18,6 +18,7 @@ from handlers.start import router as start_router
 from handlers.referral import router as referral_router
 from handlers.vip import router as vip_router
 from middleware.banned import BannedMiddleware
+from middleware.ensure_user import EnsureUserMiddleware
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,8 +43,12 @@ async def main():
 
     await init_db()
 
+    db_label = "PostgreSQL" if DATABASE_URL.startswith("postgresql") else "SQLite"
+    logger.info("Database: %s", db_label)
+
     bot = Bot(BOT_TOKEN)
     dp = Dispatcher()
+    dp.message.middleware(EnsureUserMiddleware())
     dp.message.middleware(BannedMiddleware())
 
     dp.include_router(start_router)
@@ -60,7 +65,13 @@ async def main():
 
     await setup_bot_commands(bot)
     logger.info("TALKO bot started")
-    await dp.start_polling(bot)
+    await dp.start_polling(
+        bot,
+        allowed_updates=[
+            "message",
+            "pre_checkout_query",
+        ],
+    )
 
 
 if __name__ == "__main__":

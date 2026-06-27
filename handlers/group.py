@@ -169,6 +169,10 @@ async def group_photo(message: Message):
 
 @router.message(in_room, F.sticker)
 async def group_sticker(message: Message):
+    if is_spam(message.from_user.id):
+        await message.answer("⏳ زیاد سریع پیام می‌فرستی.")
+        return
+
     user = await get_user(message.from_user.id)
     if not user or not user.room_id:
         return
