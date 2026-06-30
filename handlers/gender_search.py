@@ -27,6 +27,7 @@ async def start_search(message: Message, gender: str):
     user = await get_user(user_id)
 
     if not user:
+        await message.answer("❌ ابتدا ربات را /start کنید.")
         return
 
     if user.partner_id:

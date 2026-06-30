@@ -19,6 +19,7 @@ async def _begin_random_search(message: Message) -> None:
     user = await get_user(user_id)
 
     if not user:
+        await message.answer("❌ ابتدا ربات را /start کنید.")
         return
 
     if user.partner_id:
